@@ -117,7 +117,7 @@ export default function App() {
         <header className={styles.header}>
           <h1 className={styles.title}>Ask anything about your codebase</h1>
           <p className={styles.subtitle}>
-            Powered by Voyage AI embeddings + Gemini 2.0 Flash — no hallucinations, every answer cited.
+            Powered by Voyage AI embeddings + Gemini 1.5 Flash — no hallucinations, every answer cited.
           </p>
         </header>
 
