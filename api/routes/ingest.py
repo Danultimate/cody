@@ -57,10 +57,23 @@ async def _run_ingest(job_id: str, repo_url: str, branch: str):
         if ingestion_dir not in sys.path:
             sys.path.insert(0, ingestion_dir)
 
-        from github_loader import clone_or_pull, walk_files
-        from ast_chunker import chunk_file
-        from embedder import embed_chunks
-        import db as ingestion_db
+        import importlib.util
+
+        def _load(name, filename):
+            spec = importlib.util.spec_from_file_location(name, os.path.join(ingestion_dir, filename))
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            return mod
+
+        gh_loader  = _load("github_loader", "github_loader.py")
+        ast_chunker = _load("ast_chunker",  "ast_chunker.py")
+        embedder   = _load("embedder",      "embedder.py")
+        ingestion_db = _load("ingestion_db", "db.py")
+
+        clone_or_pull = gh_loader.clone_or_pull
+        walk_files    = gh_loader.walk_files
+        chunk_file    = ast_chunker.chunk_file
+        embed_chunks  = embedder.embed_chunks
         import git as gitlib
 
         voyage_key = os.environ.get("VOYAGE_API_KEY", "")
