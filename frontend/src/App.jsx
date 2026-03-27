@@ -1,8 +1,9 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import axios from "axios";
 import QueryPanel from "./components/QueryPanel.jsx";
 import AnswerPanel from "./components/AnswerPanel.jsx";
 import RepoTree from "./components/RepoTree.jsx";
+import AddRepoModal from "./components/AddRepoModal.jsx";
 import styles from "./App.module.css";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "/";
@@ -16,16 +17,19 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [highlightedFile, setHighlightedFile] = useState(null);
+  const [showAddRepo, setShowAddRepo] = useState(false);
   const answerRef = useRef(null);
 
-  useEffect(() => {
+  const fetchRepos = useCallback(() => {
     axios.get(`${API_BASE}repos`).then((res) => {
       setRepos(res.data);
-      if (res.data.length > 0) setSelectedRepo(res.data[0]);
+      if (res.data.length > 0 && !selectedRepo) setSelectedRepo(res.data[0]);
     }).catch(() => {
       setError("Could not connect to the API. Is the backend running?");
     });
-  }, []);
+  }, [selectedRepo]);
+
+  useEffect(() => { fetchRepos(); }, []);
 
   const handleQuery = async (question) => {
     if (!selectedRepo) return;
@@ -52,6 +56,11 @@ export default function App() {
     }
   };
 
+  const handleRepoDone = () => {
+    fetchRepos();
+    setShowAddRepo(false);
+  };
+
   return (
     <div className={styles.layout}>
       {/* Sidebar */}
@@ -61,7 +70,12 @@ export default function App() {
         </div>
 
         <div className={styles.sideSection}>
-          <label className={styles.sideLabel}>Repository</label>
+          <div className={styles.sideRow}>
+            <label className={styles.sideLabel}>Repository</label>
+            <button className={styles.addBtn} onClick={() => setShowAddRepo(true)} title="Add repository">
+              +
+            </button>
+          </div>
           <select
             className={styles.repoSelect}
             value={selectedRepo?.id ?? ""}
@@ -123,6 +137,14 @@ export default function App() {
           )}
         </div>
       </main>
+
+      {showAddRepo && (
+        <AddRepoModal
+          apiBase={API_BASE}
+          onClose={() => setShowAddRepo(false)}
+          onDone={handleRepoDone}
+        />
+      )}
     </div>
   );
 }

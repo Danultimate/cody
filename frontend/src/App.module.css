@@ -36,6 +36,12 @@
   gap: 8px;
 }
 
+.sideRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
 .sideLabel {
   font-size: 10px;
   font-weight: 600;
@@ -43,6 +49,23 @@
   text-transform: uppercase;
   color: var(--text-muted);
 }
+
+.addBtn {
+  background: var(--accent-dim);
+  color: var(--accent);
+  border: 1px solid rgba(0,229,160,0.25);
+  border-radius: 6px;
+  width: 22px;
+  height: 22px;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+.addBtn:hover { background: rgba(0,229,160,0.2); }
 
 .repoSelect {
   background: var(--surface-2);

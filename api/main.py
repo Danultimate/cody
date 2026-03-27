@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from db import engine
-from routes import query, repos
+from routes import query, repos, ingest
 
 app = FastAPI(title="Codebase Intelligence Engine")
 
@@ -26,6 +26,7 @@ async def root():
 
 app.include_router(repos.router)
 app.include_router(query.router)
+app.include_router(ingest.router)
 
 
 @app.on_event("startup")
