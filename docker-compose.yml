@@ -32,9 +32,7 @@ services:
       - /tmp/repos:/tmp/repos
 
   api:
-    build:
-      context: .
-      dockerfile: api/Dockerfile
+    build: ./api
     restart: unless-stopped
     env_file: .env
     environment:
