@@ -2,6 +2,8 @@
 
 A RAG-powered developer tool that indexes GitHub repositories and answers natural language questions about codebases with cited file paths.
 
+![Demo](demo.gif)
+
 ## Stack
 
 | Layer | Technology |
