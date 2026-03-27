@@ -24,6 +24,18 @@ app.add_middleware(
 async def root():
     return {"status": "ok", "service": "Codebase Intelligence Engine"}
 
+
+@app.get("/models")
+async def list_models():
+    import google.generativeai as genai
+    genai.configure(api_key=os.environ.get("GEMINI_API_KEY", ""))
+    models = [
+        {"name": m.name, "methods": m.supported_generation_methods}
+        for m in genai.list_models()
+        if "generateContent" in m.supported_generation_methods
+    ]
+    return {"models": models}
+
 app.include_router(repos.router)
 app.include_router(query.router)
 app.include_router(ingest.router)
