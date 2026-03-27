@@ -10,7 +10,7 @@ A RAG-powered developer tool that indexes GitHub repositories and answers natura
 |---|---|
 | Embeddings | Voyage AI `voyage-code-3` (1024-dim) |
 | Vector store | pgvector on Postgres 16 |
-| Answer synthesis | Anthropic Claude claude-sonnet-4-6 |
+| Answer synthesis | Google Gemini 2.5 Flash |
 | Chunking | Tree-sitter AST-aware |
 | API | Python 3.12 + FastAPI |
 | Frontend | React 18 + Vite |

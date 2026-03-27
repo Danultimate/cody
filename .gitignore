@@ -24,8 +24,7 @@ dist/
 .DS_Store
 Thumbs.db
 
-# Media
-*.gif
+# Media (add specific large files here if needed)
 
 # Temp repos cache
 /tmp/repos/
