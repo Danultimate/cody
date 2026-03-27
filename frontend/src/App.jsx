@@ -5,7 +5,7 @@ import AnswerPanel from "./components/AnswerPanel.jsx";
 import RepoTree from "./components/RepoTree.jsx";
 import styles from "./App.module.css";
 
-const API_BASE = "/";
+const API_BASE = import.meta.env.VITE_API_URL ?? "/";
 
 export default function App() {
   const [repos, setRepos] = useState([]);
