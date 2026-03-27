@@ -74,7 +74,7 @@ def _build_prompt(question: str, chunks: list[dict]) -> tuple[str, str]:
 def _call_gemini(system: str, user: str) -> str:
     genai.configure(api_key=GEMINI_API_KEY)
     model = genai.GenerativeModel(
-        model_name="gemini-1.5-flash",
+        model_name="gemini-1.5-flash-latest",
         system_instruction=system,
     )
     response = model.generate_content(user)
