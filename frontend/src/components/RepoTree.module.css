@@ -1,0 +1,70 @@
+.tree {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  overflow-y: auto;
+  max-height: 400px;
+}
+
+.dirRow {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 6px;
+  border-radius: 5px;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: background 0.1s, color 0.1s;
+}
+
+.dirRow:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.arrow {
+  font-size: 10px;
+  width: 10px;
+  flex-shrink: 0;
+}
+
+.dirName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fileRow {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 6px;
+  border-radius: 5px;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: background 0.1s, color 0.1s;
+}
+
+.fileRow:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.fileRow.highlighted {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+.fileIcon {
+  font-size: 7px;
+  flex-shrink: 0;
+  opacity: 0.5;
+}
+
+.fileName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

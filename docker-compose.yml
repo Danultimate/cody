@@ -1,0 +1,55 @@
+version: "3.9"
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-cody}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cody}
+      POSTGRES_DB: ${POSTGRES_DB:-cody}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cody}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  ingestion:
+    build: ./ingestion
+    profiles: ["ingest"]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-cody}:${POSTGRES_PASSWORD:-cody}@db:5432/${POSTGRES_DB:-cody}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - /tmp/repos:/tmp/repos
+
+  api:
+    build: ./api
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-cody}:${POSTGRES_PASSWORD:-cody}@db:5432/${POSTGRES_DB:-cody}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
