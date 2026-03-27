@@ -1,8 +1,7 @@
 import os
 import time
 
-from google import genai
-from google.genai import types
+import google.generativeai as genai
 import voyageai
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -73,12 +72,12 @@ def _build_prompt(question: str, chunks: list[dict]) -> tuple[str, str]:
 
 
 def _call_gemini(system: str, user: str) -> str:
-    client = genai.Client(api_key=GEMINI_API_KEY)
-    response = client.models.generate_content(
-        model="gemini-1.5-flash",
-        config=types.GenerateContentConfig(system_instruction=system),
-        contents=user,
+    genai.configure(api_key=GEMINI_API_KEY)
+    model = genai.GenerativeModel(
+        model_name="gemini-pro",
+        system_instruction=system,
     )
+    response = model.generate_content(user)
     return response.text
 
 
