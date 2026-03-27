@@ -1,7 +1,7 @@
 import os
 import time
 
-import google.generativeai as genai
+import requests
 import voyageai
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -72,13 +72,17 @@ def _build_prompt(question: str, chunks: list[dict]) -> tuple[str, str]:
 
 
 def _call_gemini(system: str, user: str) -> str:
-    genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel(
-        model_name="gemini-2.0-flash",
-        system_instruction=system,
+    url = (
+        "https://generativelanguage.googleapis.com/v1beta/models"
+        f"/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}"
     )
-    response = model.generate_content(user)
-    return response.text
+    payload = {
+        "system_instruction": {"parts": [{"text": system}]},
+        "contents": [{"parts": [{"text": user}]}],
+    }
+    resp = requests.post(url, json=payload, timeout=60)
+    resp.raise_for_status()
+    return resp.json()["candidates"][0]["content"]["parts"][0]["text"]
 
 
 async def query(question: str, repo_id: int, top_k: int, db: AsyncSession) -> dict:
