@@ -94,7 +94,44 @@
   color: var(--text-muted);
   display: flex;
   gap: 6px;
+  flex-wrap: wrap;
 }
+
+.repoActions {
+  display: flex;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.syncBtn {
+  flex: 1;
+  background: var(--accent-dim);
+  color: var(--accent);
+  border: 1px solid rgba(0,229,160,0.25);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.syncBtn:hover:not(:disabled) { background: rgba(0,229,160,0.2); }
+.syncBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.deleteBtn {
+  flex: 1;
+  background: rgba(255,77,109,0.08);
+  color: var(--danger);
+  border: 1px solid rgba(255,77,109,0.2);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.deleteBtn:hover:not(:disabled) { background: rgba(255,77,109,0.15); }
+.deleteBtn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .main {
   display: flex;
