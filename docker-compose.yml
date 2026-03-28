@@ -32,7 +32,7 @@ services:
       - /tmp/repos:/tmp/repos
 
   resync:
-    build: ./api
+    image: cody-api
     command: python ingestion/resync_all.py
     profiles: ["cron"]
     env_file: .env
