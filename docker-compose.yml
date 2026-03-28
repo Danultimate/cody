@@ -32,8 +32,8 @@ services:
       - /tmp/repos:/tmp/repos
 
   resync:
-    build: ./ingestion
-    command: python resync_all.py
+    build: ./api
+    command: python ingestion/resync_all.py
     profiles: ["cron"]
     env_file: .env
     environment:
