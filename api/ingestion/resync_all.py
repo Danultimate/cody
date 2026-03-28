@@ -120,7 +120,7 @@ def resync_repo(repo_url: str, branch: str, voyage_key: str, database_url: str) 
 
 def main():
     voyage_key = os.environ.get("VOYAGE_API_KEY", "")
-    database_url = os.environ.get("DATABASE_URL", "")
+    database_url = os.environ.get("DATABASE_URL", "").replace("postgresql+asyncpg://", "postgresql://")
 
     if not voyage_key:
         console.print("[red]VOYAGE_API_KEY is not set[/red]")
