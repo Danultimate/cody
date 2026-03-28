@@ -6,6 +6,29 @@ def get_connection(database_url: str):
     return psycopg2.connect(database_url)
 
 
+def get_repo_by_url(conn, url: str) -> dict | None:
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT id, commit_sha FROM repositories WHERE url = %s",
+            (url,),
+        )
+        row = cur.fetchone()
+    if row:
+        return {"id": row[0], "commit_sha": row[1]}
+    return None
+
+
+def delete_chunks_for_files(conn, repo_id: int, file_paths: list[str]) -> None:
+    if not file_paths:
+        return
+    with conn.cursor() as cur:
+        cur.execute(
+            "DELETE FROM chunks WHERE repo_id = %s AND file_path = ANY(%s)",
+            (repo_id, file_paths),
+        )
+    conn.commit()
+
+
 def upsert_repository(conn, url: str, name: str, branch: str, commit_sha: str) -> int:
     with conn.cursor() as cur:
         cur.execute(

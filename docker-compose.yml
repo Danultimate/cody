@@ -31,6 +31,19 @@ services:
     volumes:
       - /tmp/repos:/tmp/repos
 
+  resync:
+    build: ./ingestion
+    command: python resync_all.py
+    profiles: ["cron"]
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-cody}:${POSTGRES_PASSWORD:-cody}@db:5432/${POSTGRES_DB:-cody}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - /tmp/repos:/tmp/repos
+
   api:
     build: ./api
     restart: unless-stopped

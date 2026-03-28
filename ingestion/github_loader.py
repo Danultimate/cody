@@ -1,5 +1,6 @@
 from pathlib import Path
 import git
+from typing import Optional
 
 SUPPORTED_EXTENSIONS = {
     ".py", ".js", ".ts", ".jsx", ".tsx",
@@ -33,6 +34,37 @@ def clone_or_pull(repo_url: str, branch: str = "main", cache_dir: str = "/tmp/re
         git.Repo.clone_from(repo_url, repo_path, branch=branch, depth=None)
 
     return repo_path
+
+
+def get_current_commit(repo_path: Path) -> str:
+    return git.Repo(repo_path).head.commit.hexsha
+
+
+def get_changed_files(repo_path: Path, since_commit: str) -> dict:
+    """Return files changed between since_commit and HEAD.
+
+    Returns {'modified': [paths], 'deleted': [paths]}
+    where 'modified' covers added, modified, and renamed files.
+    """
+    repo = git.Repo(repo_path)
+    try:
+        diff_output = repo.git.diff("--name-status", since_commit, "HEAD")
+    except git.GitCommandError:
+        # since_commit not found (e.g. force-pushed) — signal full re-index
+        return {"modified": [], "deleted": [], "full_reindex": True}
+
+    modified, deleted = [], []
+    for line in diff_output.strip().splitlines():
+        if not line:
+            continue
+        parts = line.split("\t")
+        status = parts[0][0]  # D=deleted, M=modified, A=added, R=renamed, C=copied
+        path = parts[-1]      # last field is always the destination path
+        if status == "D":
+            deleted.append(path)
+        else:
+            modified.append(path)
+    return {"modified": modified, "deleted": deleted, "full_reindex": False}
 
 
 def _is_binary(file_path: Path) -> bool:
