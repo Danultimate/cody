@@ -1,5 +1,4 @@
 import os
-import time
 
 import requests
 import voyageai
@@ -9,7 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 VOYAGE_API_KEY = os.environ.get("VOYAGE_API_KEY", "")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
-SIMILARITY_THRESHOLD = 0.3
+SIMILARITY_THRESHOLD = 0.45
+MAX_CONTEXT_TOKENS = 6000
+RERANK_MODEL = "rerank-2"
 
 
 def _embed_question(question: str) -> list[float]:
@@ -18,8 +19,12 @@ def _embed_question(question: str) -> list[float]:
     return result.embeddings[0]
 
 
-async def _vector_search(question_vec: list[float], repo_id: int, top_k: int, db: AsyncSession) -> list[dict]:
+async def _vector_search(
+    question_vec: list[float], repo_id: int, top_k: int, db: AsyncSession
+) -> list[dict]:
     vec_str = "[" + ",".join(str(x) for x in question_vec) + "]"
+    # Higher ef_search trades a little latency for better HNSW recall
+    await db.execute(text("SET LOCAL hnsw.ef_search = 100"))
     result = await db.execute(
         text(
             f"""
@@ -31,6 +36,7 @@ async def _vector_search(question_vec: list[float], repo_id: int, top_k: int, db
                 start_line,
                 end_line,
                 content,
+                token_count,
                 1 - (embedding <=> '{vec_str}'::vector) AS similarity
             FROM chunks
             WHERE repo_id = :repo_id
@@ -44,6 +50,82 @@ async def _vector_search(question_vec: list[float], repo_id: int, top_k: int, db
     return [dict(r) for r in rows if r["similarity"] >= SIMILARITY_THRESHOLD]
 
 
+async def _keyword_search(
+    question: str, repo_id: int, top_k: int, db: AsyncSession
+) -> list[dict]:
+    # 'simple' dictionary preserves code identifiers (no stemming)
+    try:
+        result = await db.execute(
+            text(
+                """
+                SELECT
+                    id,
+                    file_path,
+                    chunk_type,
+                    name,
+                    start_line,
+                    end_line,
+                    content,
+                    token_count,
+                    ts_rank(tsv, plainto_tsquery('simple', :query)) AS bm25_rank
+                FROM chunks
+                WHERE repo_id = :repo_id
+                  AND tsv @@ plainto_tsquery('simple', :query)
+                ORDER BY bm25_rank DESC
+                LIMIT :top_k
+                """
+            ),
+            {"repo_id": repo_id, "query": question, "top_k": top_k},
+        )
+        rows = result.mappings().all()
+        return [dict(r) for r in rows]
+    except Exception:
+        return []
+
+
+def _reciprocal_rank_fusion(
+    vector_chunks: list[dict], keyword_chunks: list[dict], k: int = 60
+) -> list[dict]:
+    scores: dict[int, float] = {}
+    all_chunks: dict[int, dict] = {}
+
+    for rank, chunk in enumerate(vector_chunks):
+        cid = chunk["id"]
+        scores[cid] = scores.get(cid, 0.0) + 1.0 / (rank + 1 + k)
+        all_chunks[cid] = chunk  # vector version carries the similarity field
+
+    for rank, chunk in enumerate(keyword_chunks):
+        cid = chunk["id"]
+        scores[cid] = scores.get(cid, 0.0) + 1.0 / (rank + 1 + k)
+        if cid not in all_chunks:
+            all_chunks[cid] = {**chunk, "similarity": 0.0}  # keyword-only: no cosine score
+
+    sorted_ids = sorted(scores, key=lambda cid: scores[cid], reverse=True)
+    return [all_chunks[cid] for cid in sorted_ids]
+
+
+def _rerank(question: str, candidates: list[dict], top_k: int) -> list[dict]:
+    if not candidates:
+        return candidates
+    url = "https://api.voyageai.com/v1/rerank"
+    payload = {
+        "query": question,
+        "documents": [c["content"] for c in candidates],
+        "model": RERANK_MODEL,
+        "top_k": min(top_k, len(candidates)),
+    }
+    headers = {
+        "Authorization": f"Bearer {VOYAGE_API_KEY}",
+        "Content-Type": "application/json",
+    }
+    try:
+        resp = requests.post(url, json=payload, headers=headers, timeout=30)
+        resp.raise_for_status()
+        return [candidates[item["index"]] for item in resp.json()["data"]]
+    except Exception:
+        return candidates[:top_k]
+
+
 def _build_prompt(question: str, chunks: list[dict]) -> tuple[str, str]:
     system = (
         "You are a senior software engineer helping a developer understand a codebase. "
@@ -52,7 +134,11 @@ def _build_prompt(question: str, chunks: list[dict]) -> tuple[str, str]:
     )
 
     context_parts = []
+    total_tokens = 0
     for chunk in chunks:
+        chunk_tokens = chunk.get("token_count") or 0
+        if total_tokens + chunk_tokens > MAX_CONTEXT_TOKENS:
+            break
         header = (
             f"--- {chunk['file_path']} "
             f"(lines {chunk['start_line']}-{chunk['end_line']}"
@@ -60,6 +146,7 @@ def _build_prompt(question: str, chunks: list[dict]) -> tuple[str, str]:
             + ") ---"
         )
         context_parts.append(f"{header}\n{chunk['content']}\n---")
+        total_tokens += chunk_tokens
 
     context_block = "\n\n".join(context_parts)
     user = (
@@ -87,21 +174,29 @@ def _call_gemini(system: str, user: str) -> str:
 
 
 async def query(question: str, repo_id: int, top_k: int, db: AsyncSession) -> dict:
+    retrieval_k = top_k * 3
+
     # Step 1: Embed question
     question_vec = _embed_question(question)
 
-    # Step 2: Vector search
-    chunks = await _vector_search(question_vec, repo_id, top_k, db)
+    # Step 2: Hybrid retrieval — vector and keyword run sequentially (shared session)
+    vector_chunks = await _vector_search(question_vec, repo_id, retrieval_k, db)
+    keyword_chunks = await _keyword_search(question, repo_id, retrieval_k, db)
 
-    if not chunks:
+    # Step 3: Merge candidates with Reciprocal Rank Fusion
+    candidates = _reciprocal_rank_fusion(vector_chunks, keyword_chunks)
+
+    if not candidates:
         return {
             "answer": "No relevant code chunks found for this question in the selected repository.",
             "chunks": [],
         }
 
-    # Step 3 & 4: Build prompt and call Gemini
+    # Step 4: Rerank to top_k (falls back to RRF order if Voyage rerank API fails)
+    chunks = _rerank(question, candidates, top_k)
+
+    # Step 5: Build prompt with token budget and call Gemini
     system, user = _build_prompt(question, chunks)
     answer = _call_gemini(system, user)
 
-    # Step 5: Return
     return {"answer": answer, "chunks": chunks}

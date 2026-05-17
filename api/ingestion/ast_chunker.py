@@ -7,6 +7,8 @@ try:
 except ImportError:
     _TS_AVAILABLE = False
 
+# cl100k_base is a reasonable proxy for Voyage AI's tokenizer on code; used for
+# context-budget estimation only, not billing.
 _encoder = tiktoken.get_encoding("cl100k_base")
 
 # AST node types to extract per language

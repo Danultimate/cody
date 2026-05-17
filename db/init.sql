@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS chunks (
     content     TEXT NOT NULL,
     token_count INTEGER,
     embedding   vector(1024),
+    tsv         tsvector GENERATED ALWAYS AS (to_tsvector('simple', content)) STORED,
     created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -33,6 +34,7 @@ CREATE INDEX IF NOT EXISTS chunks_embedding_idx
 
 CREATE INDEX IF NOT EXISTS chunks_repo_id_idx ON chunks (repo_id);
 CREATE INDEX IF NOT EXISTS chunks_repo_file_idx ON chunks (repo_id, file_path);
+CREATE INDEX IF NOT EXISTS chunks_tsv_idx ON chunks USING GIN(tsv);
 
 CREATE TABLE IF NOT EXISTS query_log (
     id              SERIAL PRIMARY KEY,
