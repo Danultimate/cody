@@ -9,6 +9,7 @@ export default defineConfig({
     proxy: {
       "/query": "http://api:8000",
       "/repos": "http://api:8000",
+      "/ingest": "http://api:8000",
     },
   },
 });
