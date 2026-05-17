@@ -5,6 +5,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
+    allowedHosts: ["cody.danblanco.dev"],
     proxy: {
       "/query": "http://api:8000",
       "/repos": "http://api:8000",
