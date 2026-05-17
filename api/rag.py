@@ -1,4 +1,5 @@
 import os
+import re
 
 import requests
 import voyageai
@@ -8,7 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 VOYAGE_API_KEY = os.environ.get("VOYAGE_API_KEY", "")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
-SIMILARITY_THRESHOLD = 0.45
+# Reranker handles quality filtering — this is just a noise floor
+SIMILARITY_THRESHOLD = 0.2
 MAX_CONTEXT_TOKENS = 6000
 RERANK_MODEL = "rerank-2"
 
@@ -50,10 +52,20 @@ async def _vector_search(
     return [dict(r) for r in rows if r["similarity"] >= SIMILARITY_THRESHOLD]
 
 
+def _build_tsquery(question: str) -> str | None:
+    # Extract alphanumeric tokens and join with OR so any matching term scores.
+    # plainto_tsquery AND semantics would require "where","is","defined" to all
+    # appear in code — they won't. OR lets ts_rank sort by how many tokens match.
+    tokens = re.findall(r"[a-zA-Z0-9]+", question.lower())
+    return " | ".join(tokens) if tokens else None
+
+
 async def _keyword_search(
     question: str, repo_id: int, top_k: int, db: AsyncSession
 ) -> list[dict]:
-    # 'simple' dictionary preserves code identifiers (no stemming)
+    tsquery = _build_tsquery(question)
+    if not tsquery:
+        return []
     try:
         result = await db.execute(
             text(
@@ -67,15 +79,15 @@ async def _keyword_search(
                     end_line,
                     content,
                     token_count,
-                    ts_rank(tsv, plainto_tsquery('simple', :query)) AS bm25_rank
+                    ts_rank(tsv, to_tsquery('simple', :tsquery)) AS bm25_rank
                 FROM chunks
                 WHERE repo_id = :repo_id
-                  AND tsv @@ plainto_tsquery('simple', :query)
+                  AND tsv @@ to_tsquery('simple', :tsquery)
                 ORDER BY bm25_rank DESC
                 LIMIT :top_k
                 """
             ),
-            {"repo_id": repo_id, "query": question, "top_k": top_k},
+            {"repo_id": repo_id, "tsquery": tsquery, "top_k": top_k},
         )
         rows = result.mappings().all()
         return [dict(r) for r in rows]
