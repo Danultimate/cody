@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 VOYAGE_API_KEY = os.environ.get("VOYAGE_API_KEY", "")
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
 SIMILARITY_THRESHOLD = 0.3
 
 
@@ -74,7 +75,7 @@ def _build_prompt(question: str, chunks: list[dict]) -> tuple[str, str]:
 def _call_gemini(system: str, user: str) -> str:
     url = (
         "https://generativelanguage.googleapis.com/v1beta/models"
-        f"/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}"
+        f"/{GEMINI_MODEL}:generateContent?key={GEMINI_API_KEY}"
     )
     payload = {
         "system_instruction": {"parts": [{"text": system}]},
