@@ -1,0 +1,12 @@
+version: "3.9"
+
+# Production overrides — use with:
+# docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+services:
+  db:
+    ports: []  # do not expose Postgres externally in production
+
+  frontend:
+    environment:
+      VITE_API_URL: ""  # default to "/" so Vite proxy handles API routing

@@ -1,0 +1,22 @@
+name: Deploy Cody to EC2
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.CODY_EC2_HOST }}
+          username: ${{ secrets.CODY_EC2_USER }}
+          key: ${{ secrets.CODY_EC2_SSH_KEY }}
+          script: |
+            cd /home/${{ secrets.CODY_EC2_USER }}/cody
+            git pull origin main
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build --remove-orphans
