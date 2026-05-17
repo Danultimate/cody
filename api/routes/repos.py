@@ -34,6 +34,7 @@ async def delete_repo(repo_id: int, db: AsyncSession = Depends(get_db)):
     )
     if not result.fetchone():
         raise HTTPException(status_code=404, detail="Repo not found")
+    await db.execute(text("DELETE FROM query_log WHERE repo_id = :id"), {"id": repo_id})
     # CASCADE in schema handles deleting chunks
     await db.execute(text("DELETE FROM repositories WHERE id = :id"), {"id": repo_id})
     await db.commit()
