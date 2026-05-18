@@ -142,6 +142,9 @@ def _build_prompt(question: str, chunks: list[dict]) -> tuple[str, str]:
     system = (
         "You are a senior software engineer helping a developer understand a codebase. "
         "Answer questions accurately using only the provided source code chunks. "
+        "When asked what a project or application IS, base your answer on README.md, "
+        "top-level docs, or package manifests — not on configuration variable names, "
+        "default values, database names, or hostnames that happen to share the project name. "
         "Always cite the exact file path and line numbers for every claim."
     )
 
@@ -205,6 +208,16 @@ async def query(question: str, repo_id: int, top_k: int, db: AsyncSession) -> di
         }
 
     # Step 4: Rerank to top_k (falls back to RRF order if Voyage rerank API fails)
+    # For meta questions about the project, surface README/docs chunks first so
+    # the reranker sees them — config file hits for the same word would otherwise
+    # push them out of the candidate window.
+    meta_keywords = {"what is", "what's", "what are", "describe", "overview", "explain"}
+    q_lower = question.lower()
+    if any(kw in q_lower for kw in meta_keywords):
+        readme_chunks = [c for c in candidates if "readme" in c["file_path"].lower()]
+        other_chunks = [c for c in candidates if "readme" not in c["file_path"].lower()]
+        candidates = readme_chunks + other_chunks
+
     chunks = _rerank(question, candidates, top_k)
 
     # Step 5: Build prompt with token budget and call Gemini
