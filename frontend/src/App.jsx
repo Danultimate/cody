@@ -8,6 +8,16 @@ import styles from "./App.module.css";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "/";
 const POLL_INTERVAL = 2000;
+const QUESTION_LIMIT = 5;
+
+function getOrCreateSessionId() {
+  let sid = localStorage.getItem("cody_session_id");
+  if (!sid) {
+    sid = crypto.randomUUID();
+    localStorage.setItem("cody_session_id", sid);
+  }
+  return sid;
+}
 
 function timeAgo(dateStr) {
   if (!dateStr) return null;
@@ -32,6 +42,8 @@ export default function App() {
   const [highlightedFile, setHighlightedFile] = useState(null);
   const [showAddRepo, setShowAddRepo] = useState(false);
   const [syncingRepoId, setSyncingRepoId] = useState(null);
+  const [sessionId, setSessionId] = useState(() => getOrCreateSessionId());
+  const [questionsRemaining, setQuestionsRemaining] = useState(QUESTION_LIMIT);
   const answerRef = useRef(null);
   const syncPollRef = useRef(null);
 
@@ -46,7 +58,6 @@ export default function App() {
 
   useEffect(() => { fetchRepos(false); }, []);
 
-  // Keep selectedRepo in sync when repos list refreshes
   useEffect(() => {
     if (!selectedRepo || repos.length === 0) return;
     const updated = repos.find((r) => r.id === selectedRepo.id);
@@ -66,13 +77,22 @@ export default function App() {
         question,
         repo_id: selectedRepo.id,
         top_k: 8,
+        session_id: sessionId,
       });
       setAnswer(res.data.answer);
       setChunks(res.data.chunks);
       setLatencyMs(res.data.latency_ms);
+      if (res.data.questions_remaining !== undefined) {
+        setQuestionsRemaining(res.data.questions_remaining);
+      }
       setTimeout(() => answerRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
     } catch (e) {
-      setError(e.response?.data?.detail || "Query failed. Check the console.");
+      if (e.response?.status === 429) {
+        setQuestionsRemaining(0);
+        setError(e.response.data.detail);
+      } else {
+        setError(e.response?.data?.detail || "Query failed. Check the console.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -123,9 +143,16 @@ export default function App() {
   useEffect(() => () => clearInterval(syncPollRef.current), []);
 
   const handleRepoDone = () => {
+    // New repo = fresh session so the user gets their 5 questions back
+    const newId = crypto.randomUUID();
+    localStorage.setItem("cody_session_id", newId);
+    setSessionId(newId);
+    setQuestionsRemaining(QUESTION_LIMIT);
     fetchRepos(false);
     setShowAddRepo(false);
   };
+
+  const outOfQuestions = questionsRemaining === 0;
 
   return (
     <div className={styles.layout}>
@@ -216,7 +243,23 @@ export default function App() {
           </p>
         </header>
 
-        <QueryPanel onSubmit={handleQuery} isLoading={isLoading} disabled={!selectedRepo} />
+        <QueryPanel
+          onSubmit={handleQuery}
+          isLoading={isLoading}
+          disabled={!selectedRepo || outOfQuestions}
+        />
+
+        <div className={styles.sessionMeta}>
+          {outOfQuestions ? (
+            <span className={styles.quotaExhausted}>
+              Session limit reached — index a new repo to continue
+            </span>
+          ) : (
+            <span className={styles.quotaCounter}>
+              {questionsRemaining} question{questionsRemaining !== 1 ? "s" : ""} remaining this session
+            </span>
+          )}
+        </div>
 
         {error && <div className={styles.error}>{error}</div>}
 
@@ -238,6 +281,8 @@ export default function App() {
           apiBase={API_BASE}
           onClose={() => setShowAddRepo(false)}
           onDone={handleRepoDone}
+          suggestedRepos={repos}
+          onSelectRepo={(repo) => { setSelectedRepo(repo); setShowAddRepo(false); }}
         />
       )}
     </div>

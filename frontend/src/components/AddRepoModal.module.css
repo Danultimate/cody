@@ -161,3 +161,72 @@
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+/* Rate limited states */
+.busyState,
+.rateLimitedState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0 4px;
+  text-align: center;
+}
+
+.busyIcon {
+  font-size: 32px;
+  margin-bottom: 4px;
+}
+
+.busyTitle,
+.rateLimitedTitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+
+.busyText,
+.rateLimitedText {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.suggestedList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.suggestedItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  text-align: left;
+}
+.suggestedItem:hover {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.suggestedName {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text);
+}
+
+.suggestedMeta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}

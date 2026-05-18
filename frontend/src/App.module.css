@@ -168,3 +168,17 @@
   font-size: 13px;
   font-family: var(--font-mono);
 }
+
+.sessionMeta {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  margin-top: -8px;
+}
+
+.quotaCounter {
+  color: var(--text-muted);
+}
+
+.quotaExhausted {
+  color: var(--danger);
+}

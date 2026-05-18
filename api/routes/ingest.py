@@ -4,7 +4,7 @@ import sys
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 # job store: { job_id: { status, repo, branch, log, started_at, finished_at } }
@@ -20,7 +20,20 @@ class IngestRequest(BaseModel):
 
 
 @router.post("/ingest")
-async def start_ingest(body: IngestRequest):
+async def start_ingest(body: IngestRequest, request: Request):
+    from limiter import check_index_allowed, record_index_start
+    allowed, reason = await check_index_allowed(request)
+    if not allowed:
+        if reason == "global":
+            raise HTTPException(
+                status_code=503,
+                detail="Cody is getting a lot of love right now. Try again in a little while.",
+            )
+        raise HTTPException(
+            status_code=429,
+            detail="You've already indexed a repo today. Come back tomorrow or try one of the suggested repos below.",
+        )
+    await record_index_start(request)
     job_id = str(uuid.uuid4())
     _jobs[job_id] = {
         "job_id": job_id,

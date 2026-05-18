@@ -4,12 +4,13 @@ import styles from "./AddRepoModal.module.css";
 
 const POLL_INTERVAL = 2000;
 
-export default function AddRepoModal({ apiBase, onClose, onDone }) {
+export default function AddRepoModal({ apiBase, onClose, onDone, suggestedRepos = [], onSelectRepo }) {
   const [repoUrl, setRepoUrl] = useState("");
   const [branch, setBranch] = useState("main");
   const [jobId, setJobId] = useState(null);
   const [job, setJob] = useState(null);
   const [error, setError] = useState("");
+  const [rateLimited, setRateLimited] = useState(null); // null | 'ip' | 'global'
   const pollRef = useRef(null);
   const logRef = useRef(null);
 
@@ -38,14 +39,77 @@ export default function AddRepoModal({ apiBase, onClose, onDone }) {
     try {
       const res = await axios.post(`${apiBase}ingest`, { repo_url: repoUrl, branch });
       setJobId(res.data.job_id);
-    } catch (e) {
-      setError(e.response?.data?.detail || "Failed to start ingestion.");
+    } catch (err) {
+      const status = err.response?.status;
+      if (status === 429) {
+        setRateLimited("ip");
+      } else if (status === 503) {
+        setRateLimited("global");
+      } else {
+        setError(err.response?.data?.detail || "Failed to start ingestion.");
+      }
     }
   };
 
-  const isRunning = job && (job.status === "pending" || job.status === "running");
   const isDone = job?.status === "done";
   const isError = job?.status === "error";
+
+  if (rateLimited === "global") {
+    return (
+      <div className={styles.overlay} onClick={(e) => e.target === e.currentTarget && onClose()}>
+        <div className={styles.modal}>
+          <div className={styles.header}>
+            <h2 className={styles.title}>Add Repository</h2>
+            <button className={styles.closeBtn} onClick={onClose}>✕</button>
+          </div>
+          <div className={styles.busyState}>
+            <div className={styles.busyIcon}>&#x23F3;</div>
+            <p className={styles.busyTitle}>Cody is busy right now</p>
+            <p className={styles.busyText}>We're getting a lot of love at the moment. Try again in a little while, or explore one of the repos already indexed below.</p>
+            {suggestedRepos.length > 0 && (
+              <div className={styles.suggestedList}>
+                {suggestedRepos.map((r) => (
+                  <button key={r.id} className={styles.suggestedItem} onClick={() => onSelectRepo(r)}>
+                    <span className={styles.suggestedName}>{r.name}</span>
+                    <span className={styles.suggestedMeta}>{r.chunk_count ?? 0} chunks</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (rateLimited === "ip") {
+    return (
+      <div className={styles.overlay} onClick={(e) => e.target === e.currentTarget && onClose()}>
+        <div className={styles.modal}>
+          <div className={styles.header}>
+            <h2 className={styles.title}>Add Repository</h2>
+            <button className={styles.closeBtn} onClick={onClose}>✕</button>
+          </div>
+          <div className={styles.rateLimitedState}>
+            <p className={styles.rateLimitedTitle}>Daily limit reached</p>
+            <p className={styles.rateLimitedText}>You've already indexed a repo today. Come back tomorrow, or explore one of these already-indexed repos:</p>
+            {suggestedRepos.length > 0 ? (
+              <div className={styles.suggestedList}>
+                {suggestedRepos.map((r) => (
+                  <button key={r.id} className={styles.suggestedItem} onClick={() => onSelectRepo(r)}>
+                    <span className={styles.suggestedName}>{r.name}</span>
+                    <span className={styles.suggestedMeta}>{r.chunk_count ?? 0} chunks</span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className={styles.rateLimitedText}>No repos indexed yet.</p>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.overlay} onClick={(e) => e.target === e.currentTarget && onClose()}>

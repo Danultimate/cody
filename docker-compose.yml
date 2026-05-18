@@ -44,16 +44,28 @@ services:
     volumes:
       - /tmp/repos:/tmp/repos
 
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   api:
     build: ./api
     restart: unless-stopped
     env_file: .env
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-cody}:${POSTGRES_PASSWORD:-cody}@db:5432/${POSTGRES_DB:-cody}
+      REDIS_URL: redis://redis:6379
     ports:
       - "8000:8000"
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
   frontend:
