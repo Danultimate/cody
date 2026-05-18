@@ -14,6 +14,17 @@ SKIP_DIRS = {
     "venv", "env", ".tox", "coverage",
 }
 
+# Build-tool / environment config files — they contain hostnames, credentials,
+# and tool-specific settings rather than application logic worth indexing.
+SKIP_FILE_PATTERNS = {
+    "vite.config", "webpack.config", "rollup.config", "esbuild.config",
+    "babel.config", "jest.config", "vitest.config", "playwright.config",
+    "eslint.config", ".eslintrc", "prettier.config", ".prettierrc",
+    "postcss.config", "tailwind.config", "next.config", "nuxt.config",
+    "svelte.config", "astro.config",
+    "setup.cfg", "pyproject.toml", "setup.py",
+}
+
 MAX_FILE_SIZE = 500 * 1024  # 500 KB
 
 
@@ -111,6 +122,11 @@ def walk_files(repo_path: Path) -> list[dict]:
 
         ext = file_path.suffix.lower()
         if ext not in SUPPORTED_EXTENSIONS:
+            continue
+
+        # Skip build-tool and environment config files
+        stem = file_path.stem.lower()
+        if any(stem == pat or stem.startswith(pat + ".") for pat in SKIP_FILE_PATTERNS):
             continue
 
         size = file_path.stat().st_size
