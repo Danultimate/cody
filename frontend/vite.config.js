@@ -6,6 +6,7 @@ export default defineConfig({
   server: {
     port: 5173,
     allowedHosts: ["cody.danblanco.dev"],
+    hmr: { overlay: false },
     proxy: {
       "/query": "http://api:8000",
       "/repos": "http://api:8000",
